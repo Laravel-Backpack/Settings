@@ -49,6 +49,15 @@ class SettingCrudController extends CrudController
                 'disabled' => 'disabled',
             ],
         ]);
+        
+        CRUD::addField([
+            'name'       => 'description',
+            'label'      => trans('backpack::settings.description'),
+            'type'       => 'textarea',
+            'attributes' => [
+                'disabled' => 'disabled',
+            ],
+        ]);
 
         CRUD::addField(json_decode(CRUD::getCurrentEntry()->field, true));
     }
