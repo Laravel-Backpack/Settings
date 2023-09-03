@@ -49,7 +49,8 @@ class SettingCrudController extends CrudController
                 'disabled' => 'disabled',
             ],
         ]);
-
-        CRUD::addField(json_decode(CRUD::getCurrentEntry()->field, true));
+        $field = json_decode(CRUD::getCurrentEntry()->field, true);
+        $field['name'] = 'value';
+        CRUD::addField($field);
     }
 }
