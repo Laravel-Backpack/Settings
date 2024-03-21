@@ -2,7 +2,6 @@
 
 namespace Backpack\Settings;
 
-use Backpack\Settings\app\Models\Setting;
 use Config;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Schema;
@@ -11,7 +10,7 @@ use Illuminate\Support\ServiceProvider;
 class SettingsServiceProvider extends ServiceProvider
 {
     /**
-     * Indicates if loading of the provider is deferred.
+     * Indicates if the loading of the provider is deferred.
      *
      * @var bool
      */
@@ -42,8 +41,11 @@ class SettingsServiceProvider extends ServiceProvider
 
         // only use the Settings package if the Settings table is present in the database
         if (!\App::runningInConsole() && Schema::hasTable(config('backpack.settings.table_name'))) {
+            //get the model class from the configuration
+            $modelClass = \Config::get('backpack.settings.model', \Backpack\Settings\app\Models\Setting::class);
+
             // get all settings from the database
-            $settings = Setting::all();
+            $settings = $modelClass::all();
 
             $config_prefix = config('backpack.settings.config_prefix');
 
@@ -75,7 +77,7 @@ class SettingsServiceProvider extends ServiceProvider
      */
     public function setupRoutes(Router $router)
     {
-        // by default, use the routes file provided in vendor
+        // by default, use the routes file provided in the vendor
         $routeFilePathInUse = __DIR__.$this->routeFilePath;
 
         // but if there's a file with the same name in routes/backpack, use that one
@@ -95,6 +97,6 @@ class SettingsServiceProvider extends ServiceProvider
     {
         // register their aliases
         $loader = \Illuminate\Foundation\AliasLoader::getInstance();
-        $loader->alias('Setting', \Backpack\Settings\app\Models\Setting::class);
+        $loader->alias('Setting', config('backpack.settings.model',\Backpack\Settings\app\Models\Setting::class));
     }
 }

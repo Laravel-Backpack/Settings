@@ -14,6 +14,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Model Name
+    |--------------------------------------------------------------------------
+    |
+    | Settings Eloquent Model Class
+    |
+    */
+    'model' => \Backpack\Settings\app\Models\Setting::class,
+
+    /*
+    |--------------------------------------------------------------------------
     | Route
     |--------------------------------------------------------------------------
     |
@@ -28,11 +38,11 @@ return [
     |--------------------------------------------------------------------------
     |
     | The prefix used to add your settings into the configuration array.
-    | With this default you can grab your settings with: config('settings.your_setting_key')
+    | With this default you can grab your settings with config('settings.your_setting_key')
     |
     | WARNING: WE ADVISE TO NOT LEAVE THIS EMPTY / CHECK IF IT DOES NOT CONFLICT WITH OTHER CONFIG FILE NAMES
     |
-    |   - if you leave this empty and your keys match other configuration files you might ovewrite them.
+    |   - if you leave this empty and your keys match other configuration files you might overwrite them.
     |
     */
     'config_prefix' => 'settings',
