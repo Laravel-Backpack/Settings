@@ -27,14 +27,17 @@ class SettingCrudController extends CrudController
             [
                 'name'  => 'name',
                 'label' => trans('backpack::settings.name'),
+                'limit' => config('backpack.settings.limits.name_field_limit'),
             ],
             [
                 'name'  => 'value',
                 'label' => trans('backpack::settings.value'),
+                'limit' => config('backpack.settings.limits.value_field_limit'),
             ],
             [
                 'name'  => 'description',
                 'label' => trans('backpack::settings.description'),
+                'limit' => config('backpack.settings.limits.description_field_limit'),
             ],
         ]);
     }
