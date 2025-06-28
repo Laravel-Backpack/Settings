@@ -2,7 +2,11 @@
 
 namespace Backpack\Settings;
 
+use Backpack\Settings\app\Models\Setting;
+use Config;
+use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -38,13 +42,26 @@ class SettingsServiceProvider extends ServiceProvider
         // define the routes for the application
         $this->setupRoutes();
 
-        // only use the Settings package if the Settings table is present in the database
-        if (!App::runningInConsole() && Schema::hasTable(config('backpack.settings.table_name'))) {
-            /** @var \Illuminate\Database\Eloquent\Model $modelClass */
-            $modelClass = config('backpack.settings.model', \Backpack\Settings\app\Models\Setting::class);
+        // listen for settings to be saved and clear the cache when any Setting model is saved.
+        Setting::saved(function () {
+            Cache::forget('backpack_settings_cache');
+        });
 
-            // get all settings from the database
-            $settings = $modelClass::all();
+        // only use the Settings package if the Settings table is present in the database
+        $tableExists = Cache::remember('backpack_settings_table_exists', config('backpack.settings.cache_time', 60), function () {
+            return Schema::hasTable(config('backpack.settings.table_name'));
+        });
+
+        if (!App::runningInConsole() && $tableExists) {
+            // get all settings from the database if they're not in the database.
+            $settings = Cache::remember('backpack_settings_cache', config('backpack.settings.cache_time', 60), function () {
+                /** @var \Illuminate\Database\Eloquent\Model $modelClass */
+                $modelClass = config('backpack.settings.model', \Backpack\Settings\app\Models\Setting::class);
+
+                // get all settings from the database
+                $settings = $modelClass::all();
+                return $settings;
+            });
 
             $config_prefix = config('backpack.settings.config_prefix');
 
