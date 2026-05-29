@@ -5,68 +5,33 @@ namespace Backpack\Settings\app\Library;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Resolves stored upload values into displayable form for a single Setting
- * row, just before the list-view column is rendered.
+ * Hydrates uploader-managed values on a Setting row before its upload column renders.
  *
- * Why this exists: the normal Backpack upload pipeline relies on
- * `CrudColumn::withFiles([...])` (or `->withMedia([...])`) being called
- * inside `setupListOperation()`. That macro registers a `Model::retrieved`
- * event that runs the configured uploader's `retrieveUploadedFiles()` to
- * transform raw stored data (a path, a JSON array of paths, a media id,
- * ...) into the URL the upload column view actually renders.
- *
- * In Settings we can't use that mechanism: every row is the SAME `Setting`
- * model with the SAME column name (`value`), but each row may have a
- * DIFFERENT uploader configuration. Registering one global retrieved event
- * per row would make every uploader run against every row's value and the
- * last one would win.
- *
- * So instead of registering events, we resolve the value per-row, on
- * demand, against just the current entry — same call the event would make
- * (`$uploader->retrieveUploadedFiles($entry)`), but scoped to one row.
+ * The normal Backpack flow uses a `Model::retrieved` event registered by the
+ * `withFiles` / `withMedia` macro. We can't use it: all Setting rows share the same
+ * model and `value` attribute, so a global event would let the last uploader win.
+ * Instead we run the uploader inline, per row, on this $entry only.
  */
 class UploaderColumnHydrator
 {
-    /**
-     * Column types this hydrator is allowed to act on.
-     */
     protected const UPLOAD_COLUMN_TYPES = ['upload', 'upload_multiple', 'image'];
 
-    /**
-     * Resolve any uploader-managed value on $entry->{column['name']}
-     * in-place so the column view can render the URL(s).
-     *
-     * Safe no-op when:
-     *  - the column isn't an upload column type, or
-     *  - the column has no `withFiles` / `withMedia` definition, or
-     *  - the UploadersRepository / requested uploader isn't available
-     *    (e.g. medialibrary-uploaders not installed).
-     */
-    public static function hydrate(Model $entry, array $column): Model
+    public static function hydrate(Model $entry, array &$column): Model
     {
         if (! in_array($column['type'] ?? null, self::UPLOAD_COLUMN_TYPES, true)) {
             return $entry;
         }
 
-        // Find which uploader macro applies. Order matters: only one wins.
         $macro = isset($column['withFiles']) ? 'withFiles'
                : (isset($column['withMedia']) ? 'withMedia' : null);
 
-        if ($macro === null) {
-            return $entry;
-        }
-
-        // UploadersRepository is registered by backpack/crud's service
-        // provider. Bail out cleanly if the host app doesn't have it.
-        if (! app()->bound('UploadersRepository')) {
+        if ($macro === null || ! app()->bound('UploadersRepository')) {
             return $entry;
         }
 
         $uploadDefinition = is_array($column[$macro]) ? $column[$macro] : [];
         $uploaderClass    = $uploadDefinition['uploader'] ?? null;
 
-        // If no custom uploader was provided, look up the default for this
-        // column type + macro pair (e.g. ['upload' => SingleFile::class]).
         if ($uploaderClass === null) {
             $repository = app('UploadersRepository');
 
@@ -77,9 +42,20 @@ class UploaderColumnHydrator
             $uploaderClass = $repository->getUploadFor($column['type'], $macro);
         }
 
-        // Build the uploader the same way RegisterUploadEvents does, but
-        // never register model events — we run it inline on this $entry.
         $uploader = $uploaderClass::for($column, $uploadDefinition);
+
+        // Mirror RegisterUploadEvents::setupUploadConfigsInCrudObject() — the upload
+        // column view reads these directly off the column array.
+        if (method_exists($uploader, 'getDisk')) {
+            $column['disk'] = $uploader->getDisk();
+        }
+        if (method_exists($uploader, 'getPath')) {
+            $column['prefix'] = $uploader->getPath();
+        }
+        if (method_exists($uploader, 'useTemporaryUrl') && $uploader->useTemporaryUrl()) {
+            $column['temporary']  = true;
+            $column['expiration'] = $uploader->getExpirationTimeInMinutes();
+        }
 
         return $uploader->retrieveUploadedFiles($entry);
     }

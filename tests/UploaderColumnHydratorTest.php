@@ -21,47 +21,41 @@ class UploaderColumnHydratorTest extends TestCase
     protected function tearDown(): void
     {
         Container::setInstance(null);
-        FakeUploadersRepository::$calls = [];
         FakeSettingsUploader::$calls = [];
+        FakeSettingsAlternateUploader::$calls = [];
 
         parent::tearDown();
     }
 
     public function test_it_is_a_noop_for_non_upload_column_types()
     {
-        $entry = new FakeSettingEntry(['value' => 'raw']);
+        $entry  = new FakeSettingEntry(['value' => 'raw']);
+        $column = ['name' => 'value', 'type' => 'text'];
 
-        $result = UploaderColumnHydrator::hydrate($entry, [
-            'name' => 'value',
-            'type' => 'text',
-        ]);
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('raw', $result->value);
+        $this->assertArrayNotHasKey('disk', $column);
     }
 
     public function test_it_is_a_noop_when_no_uploader_macro_is_present()
     {
-        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $column = ['name' => 'value', 'type' => 'upload', 'disk' => 'public'];
 
-        $result = UploaderColumnHydrator::hydrate($entry, [
-            'name' => 'value',
-            'type' => 'upload',
-            'disk' => 'public',
-        ]);
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('foo/bar.jpg', $result->value);
+        $this->assertSame('public', $column['disk']);
     }
 
     public function test_it_is_a_noop_when_uploaders_repository_is_not_bound()
     {
         // Container is fresh + empty; no UploadersRepository registered.
-        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $column = ['name' => 'value', 'type' => 'upload', 'withFiles' => ['disk' => 'public']];
 
-        $result = UploaderColumnHydrator::hydrate($entry, [
-            'name'      => 'value',
-            'type'      => 'upload',
-            'withFiles' => ['disk' => 'public'],
-        ]);
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('foo/bar.jpg', $result->value);
     }
@@ -70,13 +64,10 @@ class UploaderColumnHydratorTest extends TestCase
     {
         Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([]));
 
-        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $column = ['name' => 'value', 'type' => 'upload', 'withFiles' => ['disk' => 'public']];
 
-        $result = UploaderColumnHydrator::hydrate($entry, [
-            'name'      => 'value',
-            'type'      => 'upload',
-            'withFiles' => ['disk' => 'public'],
-        ]);
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('foo/bar.jpg', $result->value);
     }
@@ -87,13 +78,14 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withFiles' => FakeSettingsUploader::class,
         ]));
 
-        $entry = new FakeSettingEntry(['value' => 'logo.png']);
-
-        $result = UploaderColumnHydrator::hydrate($entry, [
+        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $column = [
             'name'      => 'value',
             'type'      => 'upload',
             'withFiles' => ['disk' => 'public', 'path' => 'settings'],
-        ]);
+        ];
+
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('hydrated:logo.png', $result->value);
         $this->assertCount(1, FakeSettingsUploader::$calls);
@@ -103,19 +95,65 @@ class UploaderColumnHydratorTest extends TestCase
         );
     }
 
+    /**
+     * Regression: the upload column blade view reads `$column['disk']` and
+     * `$column['prefix']` directly. If the hydrator only mutates $entry and
+     * leaves the column untouched, the view crashes with
+     * "Undefined array key 'disk'". RegisterUploadEvents normally sets
+     * these via setupUploadConfigsInCrudObject() — the hydrator must too.
+     */
+    public function test_it_populates_disk_and_prefix_on_the_column_from_the_uploader()
+    {
+        Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([
+            'upload|withFiles' => FakeSettingsUploader::class,
+        ]));
+
+        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $column = [
+            'name'      => 'value',
+            'type'      => 'upload',
+            'withFiles' => ['disk' => 'public', 'path' => 'settings'],
+        ];
+
+        UploaderColumnHydrator::hydrate($entry, $column);
+
+        $this->assertSame('public', $column['disk']);
+        $this->assertSame('settings', $column['prefix']);
+    }
+
+    public function test_it_populates_temporary_and_expiration_when_the_uploader_uses_temporary_urls()
+    {
+        Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([
+            'upload|withFiles' => FakeTemporaryUrlUploader::class,
+        ]));
+
+        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $column = [
+            'name'      => 'value',
+            'type'      => 'upload',
+            'withFiles' => ['disk' => 'private', 'temporaryUrl' => true],
+        ];
+
+        UploaderColumnHydrator::hydrate($entry, $column);
+
+        $this->assertTrue($column['temporary']);
+        $this->assertSame(15, $column['expiration']);
+    }
+
     public function test_it_runs_the_default_uploader_for_with_media()
     {
         Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([
             'image|withMedia' => FakeSettingsUploader::class,
         ]));
 
-        $entry = new FakeSettingEntry(['value' => 'avatar.jpg']);
-
-        $result = UploaderColumnHydrator::hydrate($entry, [
+        $entry  = new FakeSettingEntry(['value' => 'avatar.jpg']);
+        $column = [
             'name'      => 'value',
             'type'      => 'image',
             'withMedia' => ['collection' => 'settings'],
-        ]);
+        ];
+
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('hydrated:avatar.jpg', $result->value);
     }
@@ -125,16 +163,17 @@ class UploaderColumnHydratorTest extends TestCase
         // Even with NO default registered, an explicit `uploader` key wins.
         Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([]));
 
-        $entry = new FakeSettingEntry(['value' => 'doc.pdf']);
-
-        $result = UploaderColumnHydrator::hydrate($entry, [
+        $entry  = new FakeSettingEntry(['value' => 'doc.pdf']);
+        $column = [
             'name'      => 'value',
             'type'      => 'upload',
             'withFiles' => [
                 'uploader' => FakeSettingsUploader::class,
                 'disk'     => 'private',
             ],
-        ]);
+        ];
+
+        $result = UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertSame('hydrated:doc.pdf', $result->value);
     }
@@ -146,14 +185,15 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withMedia' => FakeSettingsAlternateUploader::class,
         ]));
 
-        $entry = new FakeSettingEntry(['value' => 'x.png']);
-
-        UploaderColumnHydrator::hydrate($entry, [
+        $entry  = new FakeSettingEntry(['value' => 'x.png']);
+        $column = [
             'name'      => 'value',
             'type'      => 'upload',
             'withFiles' => ['disk' => 'a'],
             'withMedia' => ['disk' => 'b'],
-        ]);
+        ];
+
+        UploaderColumnHydrator::hydrate($entry, $column);
 
         $this->assertCount(1, FakeSettingsUploader::$calls);
         $this->assertCount(0, FakeSettingsAlternateUploader::$calls);
@@ -171,8 +211,6 @@ class FakeSettingEntry extends Model
 
 class FakeUploadersRepository
 {
-    public static array $calls = [];
-
     public function __construct(private array $map = []) {}
 
     public function hasUploadFor($type, $macro): bool
@@ -196,7 +234,27 @@ class FakeSettingsUploader
     {
         self::$calls[] = compact('crudObject', 'uploadDefinition');
 
-        return new self($crudObject, $uploadDefinition);
+        return new static($crudObject, $uploadDefinition);
+    }
+
+    public function getDisk(): string
+    {
+        return $this->uploadDefinition['disk'] ?? 'public';
+    }
+
+    public function getPath(): string
+    {
+        return $this->uploadDefinition['path'] ?? '';
+    }
+
+    public function useTemporaryUrl(): bool
+    {
+        return false;
+    }
+
+    public function getExpirationTimeInMinutes(): int
+    {
+        return 1;
     }
 
     public function retrieveUploadedFiles(Model $entry): Model
@@ -223,5 +281,23 @@ class FakeSettingsAlternateUploader extends FakeSettingsUploader
         $entry->value = 'alt:'.$entry->value;
 
         return $entry;
+    }
+}
+
+class FakeTemporaryUrlUploader extends FakeSettingsUploader
+{
+    public function useTemporaryUrl(): bool
+    {
+        return true;
+    }
+
+    public function getExpirationTimeInMinutes(): int
+    {
+        return 15;
+    }
+
+    public function getDisk(): string
+    {
+        return 'private';
     }
 }

@@ -38,8 +38,6 @@ class SettingsServiceProvider extends ServiceProvider
         // define the routes for the application
         $this->setupRoutes();
 
-        // register our blade view namespace so columns can be dispatched
-        // per-row via Backpack's view_namespace mechanism.
         $this->loadViewsFrom(__DIR__.'/resources/views', 'backpack-settings');
 
         // only use the Settings package if the Settings table is present in the database
