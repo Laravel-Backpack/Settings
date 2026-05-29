@@ -14,24 +14,24 @@ class FieldToColumnResolverTest extends TestCase
     protected function map(): array
     {
         return [
-            'date'             => 'date',
-            'date_picker'      => 'date',
-            'datetime'         => 'datetime',
-            'datetime_picker'  => 'datetime',
-            'time'             => 'time',
-            'checkbox'         => 'boolean',
-            'switch'           => 'boolean',
+            'date'              => 'date',
+            'date_picker'       => 'date',
+            'datetime'          => 'datetime',
+            'datetime_picker'   => 'datetime',
+            'time'              => 'time',
+            'checkbox'          => 'boolean',
+            'switch'            => 'boolean',
             'select_from_array' => 'select_from_array',
-            'select'           => 'select',
-            'upload'           => 'upload',
-            'image'            => 'image',
-            'color'            => 'color',
-            'number'           => 'number',
-            'email'            => 'email',
-            'url'              => 'url',
-            'textarea'         => 'textarea',
-            'tinymce'          => 'textarea',
-            'text'             => 'text',
+            'select'            => 'select',
+            'upload'            => 'upload',
+            'image'             => 'image',
+            'color'             => 'color',
+            'number'            => 'number',
+            'email'             => 'email',
+            'url'               => 'url',
+            'textarea'          => 'textarea',
+            'tinymce'           => 'textarea',
+            'text'              => 'text',
         ];
     }
 
@@ -79,8 +79,8 @@ class FieldToColumnResolverTest extends TestCase
     public function test_it_promotes_datetime_picker_display_format_to_column_format()
     {
         $column = $this->resolver()->resolve([
-            'name' => 'value',
-            'type' => 'datetime_picker',
+            'name'                    => 'value',
+            'type'                    => 'datetime_picker',
             'datetime_picker_options' => [
                 'displayFormat' => 'M/D/YY h:mm A',
                 'format'        => 'YYYY-MM-DD HH:mm:ss',
@@ -94,9 +94,9 @@ class FieldToColumnResolverTest extends TestCase
     public function test_explicit_field_format_wins_over_picker_display_format()
     {
         $column = $this->resolver()->resolve([
-            'name'   => 'value',
-            'type'   => 'datetime_picker',
-            'format' => 'DD/MM/YYYY',
+            'name'                    => 'value',
+            'type'                    => 'datetime_picker',
+            'format'                  => 'DD/MM/YYYY',
             'datetime_picker_options' => ['displayFormat' => 'M/D/YY h:mm A'],
         ]);
 
@@ -261,8 +261,8 @@ class FieldToColumnResolverTest extends TestCase
     public function test_it_strips_picker_options_after_harvesting_format()
     {
         $column = $this->resolver()->resolve([
-            'name' => 'value',
-            'type' => 'datetime_picker',
+            'name'                    => 'value',
+            'type'                    => 'datetime_picker',
             'datetime_picker_options' => ['displayFormat' => 'M/D/YY h:mm A'],
         ]);
 

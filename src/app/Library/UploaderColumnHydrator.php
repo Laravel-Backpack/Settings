@@ -18,24 +18,24 @@ class UploaderColumnHydrator
 
     public static function hydrate(Model $entry, array &$column): Model
     {
-        if (! in_array($column['type'] ?? null, self::UPLOAD_COLUMN_TYPES, true)) {
+        if (!in_array($column['type'] ?? null, self::UPLOAD_COLUMN_TYPES, true)) {
             return $entry;
         }
 
         $macro = isset($column['withFiles']) ? 'withFiles'
                : (isset($column['withMedia']) ? 'withMedia' : null);
 
-        if ($macro === null || ! app()->bound('UploadersRepository')) {
+        if ($macro === null || !app()->bound('UploadersRepository')) {
             return $entry;
         }
 
         $uploadDefinition = is_array($column[$macro]) ? $column[$macro] : [];
-        $uploaderClass    = $uploadDefinition['uploader'] ?? null;
+        $uploaderClass = $uploadDefinition['uploader'] ?? null;
 
         if ($uploaderClass === null) {
             $repository = app('UploadersRepository');
 
-            if (! $repository->hasUploadFor($column['type'], $macro)) {
+            if (!$repository->hasUploadFor($column['type'], $macro)) {
                 return $entry;
             }
 
@@ -53,7 +53,7 @@ class UploaderColumnHydrator
             $column['prefix'] = $uploader->getPath();
         }
         if (method_exists($uploader, 'useTemporaryUrl') && $uploader->useTemporaryUrl()) {
-            $column['temporary']  = true;
+            $column['temporary'] = true;
             $column['expiration'] = $uploader->getExpirationTimeInMinutes();
         }
 

@@ -15,7 +15,7 @@ class UploaderColumnHydratorTest extends TestCase
 
         // Fresh container per test so the bound `UploadersRepository`
         // doesn't leak between cases.
-        Container::setInstance(new Container);
+        Container::setInstance(new Container());
     }
 
     protected function tearDown(): void
@@ -29,7 +29,7 @@ class UploaderColumnHydratorTest extends TestCase
 
     public function test_it_is_a_noop_for_non_upload_column_types()
     {
-        $entry  = new FakeSettingEntry(['value' => 'raw']);
+        $entry = new FakeSettingEntry(['value' => 'raw']);
         $column = ['name' => 'value', 'type' => 'text'];
 
         $result = UploaderColumnHydrator::hydrate($entry, $column);
@@ -40,7 +40,7 @@ class UploaderColumnHydratorTest extends TestCase
 
     public function test_it_is_a_noop_when_no_uploader_macro_is_present()
     {
-        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
         $column = ['name' => 'value', 'type' => 'upload', 'disk' => 'public'];
 
         $result = UploaderColumnHydrator::hydrate($entry, $column);
@@ -52,7 +52,7 @@ class UploaderColumnHydratorTest extends TestCase
     public function test_it_is_a_noop_when_uploaders_repository_is_not_bound()
     {
         // Container is fresh + empty; no UploadersRepository registered.
-        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
         $column = ['name' => 'value', 'type' => 'upload', 'withFiles' => ['disk' => 'public']];
 
         $result = UploaderColumnHydrator::hydrate($entry, $column);
@@ -64,7 +64,7 @@ class UploaderColumnHydratorTest extends TestCase
     {
         Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([]));
 
-        $entry  = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
+        $entry = new FakeSettingEntry(['value' => 'foo/bar.jpg']);
         $column = ['name' => 'value', 'type' => 'upload', 'withFiles' => ['disk' => 'public']];
 
         $result = UploaderColumnHydrator::hydrate($entry, $column);
@@ -78,7 +78,7 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withFiles' => FakeSettingsUploader::class,
         ]));
 
-        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $entry = new FakeSettingEntry(['value' => 'logo.png']);
         $column = [
             'name'      => 'value',
             'type'      => 'upload',
@@ -108,7 +108,7 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withFiles' => FakeSettingsUploader::class,
         ]));
 
-        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $entry = new FakeSettingEntry(['value' => 'logo.png']);
         $column = [
             'name'      => 'value',
             'type'      => 'upload',
@@ -127,7 +127,7 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withFiles' => FakeTemporaryUrlUploader::class,
         ]));
 
-        $entry  = new FakeSettingEntry(['value' => 'logo.png']);
+        $entry = new FakeSettingEntry(['value' => 'logo.png']);
         $column = [
             'name'      => 'value',
             'type'      => 'upload',
@@ -146,7 +146,7 @@ class UploaderColumnHydratorTest extends TestCase
             'image|withMedia' => FakeSettingsUploader::class,
         ]));
 
-        $entry  = new FakeSettingEntry(['value' => 'avatar.jpg']);
+        $entry = new FakeSettingEntry(['value' => 'avatar.jpg']);
         $column = [
             'name'      => 'value',
             'type'      => 'image',
@@ -163,7 +163,7 @@ class UploaderColumnHydratorTest extends TestCase
         // Even with NO default registered, an explicit `uploader` key wins.
         Container::getInstance()->instance('UploadersRepository', new FakeUploadersRepository([]));
 
-        $entry  = new FakeSettingEntry(['value' => 'doc.pdf']);
+        $entry = new FakeSettingEntry(['value' => 'doc.pdf']);
         $column = [
             'name'      => 'value',
             'type'      => 'upload',
@@ -185,7 +185,7 @@ class UploaderColumnHydratorTest extends TestCase
             'upload|withMedia' => FakeSettingsAlternateUploader::class,
         ]));
 
-        $entry  = new FakeSettingEntry(['value' => 'x.png']);
+        $entry = new FakeSettingEntry(['value' => 'x.png']);
         $column = [
             'name'      => 'value',
             'type'      => 'upload',
@@ -211,7 +211,9 @@ class FakeSettingEntry extends Model
 
 class FakeUploadersRepository
 {
-    public function __construct(private array $map = []) {}
+    public function __construct(private array $map = [])
+    {
+    }
 
     public function hasUploadFor($type, $macro): bool
     {
@@ -228,7 +230,9 @@ class FakeSettingsUploader
 {
     public static array $calls = [];
 
-    public function __construct(public array $crudObject, public array $uploadDefinition) {}
+    public function __construct(public array $crudObject, public array $uploadDefinition)
+    {
+    }
 
     public static function for(array $crudObject, array $uploadDefinition): self
     {

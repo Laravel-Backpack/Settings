@@ -59,7 +59,7 @@ class SettingsServiceProvider extends ServiceProvider
         }
         // publish the migrations and seeds
         $this->publishes([
-            __DIR__.'/database/migrations/create_settings_table.php.stub' => database_path('migrations/'.config('backpack.settings.migration_name').'.php'),
+            __DIR__.'/database/migrations/create_settings_table.php.stub'        => database_path('migrations/'.config('backpack.settings.migration_name').'.php'),
             __DIR__.'/database/migrations/add_column_to_settings_table.php.stub' => database_path('migrations/'.config('backpack.settings.column_migration_name', '2026_05_29_000000_add_column_to_settings_table').'.php'),
         ], 'migrations');
 
