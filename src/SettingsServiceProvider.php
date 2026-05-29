@@ -38,6 +38,10 @@ class SettingsServiceProvider extends ServiceProvider
         // define the routes for the application
         $this->setupRoutes();
 
+        // register our blade view namespace so columns can be dispatched
+        // per-row via Backpack's view_namespace mechanism.
+        $this->loadViewsFrom(__DIR__.'/resources/views', 'backpack-settings');
+
         // only use the Settings package if the Settings table is present in the database
         if (!App::runningInConsole() && Schema::hasTable(config('backpack.settings.table_name'))) {
             /** @var \Illuminate\Database\Eloquent\Model $modelClass */
@@ -58,6 +62,7 @@ class SettingsServiceProvider extends ServiceProvider
         // publish the migrations and seeds
         $this->publishes([
             __DIR__.'/database/migrations/create_settings_table.php.stub' => database_path('migrations/'.config('backpack.settings.migration_name').'.php'),
+            __DIR__.'/database/migrations/add_column_to_settings_table.php.stub' => database_path('migrations/'.config('backpack.settings.column_migration_name', '2026_05_29_000000_add_column_to_settings_table').'.php'),
         ], 'migrations');
 
         // publish translation files

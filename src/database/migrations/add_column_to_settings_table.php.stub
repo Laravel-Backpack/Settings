@@ -1,0 +1,40 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class AddColumnToSettingsTable extends Migration
+{
+    /**
+     * Run the migrations.
+     *
+     * @return void
+     */
+    public function up()
+    {
+        $table = config('backpack.settings.table_name');
+
+        if (! Schema::hasColumn($table, 'column')) {
+            Schema::table($table, function (Blueprint $tbl) {
+                $tbl->text('column')->nullable()->after('field');
+            });
+        }
+    }
+
+    /**
+     * Reverse the migrations.
+     *
+     * @return void
+     */
+    public function down()
+    {
+        $table = config('backpack.settings.table_name');
+
+        if (Schema::hasColumn($table, 'column')) {
+            Schema::table($table, function (Blueprint $tbl) {
+                $tbl->dropColumn('column');
+            });
+        }
+    }
+}

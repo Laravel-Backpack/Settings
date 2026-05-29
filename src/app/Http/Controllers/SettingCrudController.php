@@ -29,8 +29,14 @@ class SettingCrudController extends CrudController
                 'label' => trans('backpack::settings.name'),
             ],
             [
-                'name'  => 'value',
-                'label' => trans('backpack::settings.value'),
+                // Per-row column dispatcher: each setting renders its
+                // `value` cell using either an explicit `column` JSON
+                // definition stored on the row, or one derived from the
+                // row's `field` JSON via the FieldToColumnResolver.
+                'name'           => 'value',
+                'label'          => trans('backpack::settings.value'),
+                'type'           => 'setting_value',
+                'view_namespace' => 'backpack-settings::columns',
             ],
             [
                 'name'  => 'description',

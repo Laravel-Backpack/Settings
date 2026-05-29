@@ -2,7 +2,7 @@
 
 [![Latest Version on Packagist][ico-version]][link-packagist]
 [![Software License][ico-license]](LICENSE.md)
-[![Build Status][ico-travis]][link-travis]
+[![Tests][ico-tests]][link-tests]
 [![Coverage Status][ico-scrutinizer]][link-scrutinizer]
 [![Quality Score][ico-code-quality]][link-code-quality]
 [![Style CI](https://styleci.io/repos/53683729/shield)](https://styleci.io/repos/53683729)
@@ -132,6 +132,113 @@ For example, you can override the Backpack `show_powered_by` setting in `/config
    }
    ```
 
+### Formatting values in the list view
+
+The `field` JSON describes how a setting is **edited**. Backpack also needs to know how each setting's value should be **displayed** in the list (the `value` column). The package gives you two ways to control this:
+
+- **Per-row explicit override** via the optional `column` DB field — always honored, no global config needed.
+- **Automatic resolution from the field** via `field_to_column_map` — opt-in via the `auto_resolve_columns` config flag (off by default for backward compatibility; will default to `true` in the next major version).
+
+Resolution order for each row:
+
+1. **Explicit `column` definition** (recommended for full control) — if the row's `column` DB field contains a JSON column definition, it's used as-is. This works whether or not `auto_resolve_columns` is enabled.
+2. **Derived from `field`** (only when `auto_resolve_columns` is `true`) — the package translates the row's `field` JSON into a matching column definition using a configurable map (e.g. `datetime` field → `datetime` column, `checkbox` → `boolean`, `select_from_array` → `select_from_array`, `upload` → `upload`, `repeatable` → `repeatable`, etc.). Every key from the field definition is forwarded to the column **except** a small blacklist of form-only keys (`attributes`, `wrapperAttributes`, `hint`, `placeholder`, `validation`/`validationRules`/`validationMessages`, `tab`, `fake`, `store_in`, `dependencies`, `on_change`, `view_namespace`, `inline_create`, `ajax`, `minimum_input_length`, `pivotSelect`, `force_select`, `datetime_picker_options`, `date_picker_options`, `readonly`, `disabled`, `autocomplete`, `allows_null`, `allows_multiple`, and similar). Column-specific keys like `temporary`, `expiration`, `height`, `width`, `radius`, `subfields`, `entity`, `model`, `attribute`, `relation_type`, `pivot`, `key`, `prefix`, `disk`, `withFiles`, `withMedia` — present or future — flow through automatically.
+3. **Fallback** — plain text (the legacy behavior).
+
+#### Enabling auto-resolution
+
+In `config/backpack/settings.php`:
+
+```php
+'auto_resolve_columns' => true,
+```
+
+After enabling it, a datetime setting with a custom format
+
+```
+| Field  | Value                                                                                |
+| key    | last_incident                                                                        |
+| field  | {"name":"value","label":"Last Incident","type":"datetime","format":"M/D/YY h:mm A"}   |
+| value  | 2026-05-08T11:00                                                                     |
+```
+
+will render as `5/8/26 11:00 AM` in the list, with no further configuration.
+
+#### Per-row explicit override
+
+You can store a column definition on any setting row, independently of the global flag — useful when you want a different display than what the field implies:
+
+```
+| Field  | Value                                                                                                  |
+| field  | {"name":"value","label":"API token","type":"text"}                                                     |
+| column | {"name":"value","label":"API token","type":"text","limit":12,"prefix":"\u2026"}                        |
+| value  | sk-live-1234567890abcdef                                                                               |
+```
+
+This requires the optional `column` DB field (see Upgrading section below for existing installations).
+
+#### Customizing the field-to-column map
+
+The mapping table lives in `config/backpack/settings.php` under `field_to_column_map`. Add or override entries to support custom field types or change how a type is rendered, without forking the package:
+
+```php
+'field_to_column_map' => [
+    // ...defaults...
+    'my_custom_field' => 'my_custom_column',
+    'tinymce'         => 'custom_html', // override default
+],
+```
+
+#### Upload columns with `withFiles` / `withMedia`
+
+Backpack's `upload`, `upload_multiple` and `image` columns can be configured with `->withFiles([...])` or `->withMedia([...])` to delegate path resolution to Backpack's uploaders (or to Spatie's Media Library, via [backpack/medialibrary-uploaders](https://github.com/Laravel-Backpack/medialibrary-uploaders)). In a normal CRUD this works because `setupListOperation()` calls the macro on a `CrudColumn` instance, which registers a `Model::retrieved` event that hydrates raw stored data (a path / a JSON array / a media id) into the URL the column actually displays.
+
+In Settings every row shares the same `Setting` model and the same `value` attribute, so a global retrieved event can't be used — the last uploader would win for every row. Instead, this package hydrates upload values **per row, on demand**, right before the cell is rendered. Put a column definition like this on the row (either via the `column` DB field or via auto-resolution of a `withFiles`-configured field):
+
+```json
+{
+  "name": "value",
+  "type": "upload",
+  "withFiles": { "disk": "public", "path": "settings" }
+}
+```
+
+The package will:
+- look up the right uploader class via Backpack's `UploadersRepository` (or honor an explicit `uploader` key on the definition),
+- run its `retrieveUploadedFiles()` against the current setting row only,
+- then render the upload column view with the resolved value.
+
+This works for `withFiles`, `withMedia` and any custom uploader registered with the repository. If neither macro is present, the upload column falls back to its default behavior (treat `value` as a raw path on `disk`).
+
+### Upgrading from earlier versions
+
+**This release is fully backward compatible by default.** If you simply update the package, your existing settings list looks and behaves exactly as before — every value cell still renders as raw text, and no migration is required.
+
+To opt into the new features:
+
+1. Publish the new config (or hand-merge the `auto_resolve_columns`, `field_to_column_map` and `column_migration_name` keys):
+
+   ```bash
+   php artisan vendor:publish --provider="Backpack\Settings\SettingsServiceProvider" --tag="config"
+   ```
+
+2. To enable automatic per-type formatting in the list, set:
+
+   ```php
+   'auto_resolve_columns' => true,
+   ```
+
+3. (Optional) To use per-row explicit `column` overrides, publish and run the additive migration that adds the nullable `column` text field:
+
+   ```bash
+   php artisan vendor:publish --provider="Backpack\Settings\SettingsServiceProvider" --tag="migrations"
+   php artisan migrate
+   ```
+
+   This migration is fully additive — the package works without it. Without it, only auto-resolution (and the legacy plain-text fallback) is available.
+
+In the next major version, `auto_resolve_columns` will default to `true`.
+
 ## Screenshots
 
 See [backpackforlaravel.com](https://backpackforlaravel.com)
@@ -185,13 +292,13 @@ If you are looking for a developer/team to help you build an admin panel on Lara
 
 [ico-version]: https://img.shields.io/packagist/v/backpack/settings.svg?style=flat-square
 [ico-license]: https://img.shields.io/badge/license-dual-blue?style=flat-square
-[ico-travis]: https://img.shields.io/travis/com/laravel-backpack/settings
+[ico-tests]: https://img.shields.io/github/actions/workflow/status/Laravel-Backpack/Settings/tests.yml?branch=master&label=tests&style=flat-square
 [ico-scrutinizer]: https://img.shields.io/scrutinizer/coverage/g/laravel-backpack/settings.svg?style=flat-square
 [ico-code-quality]: https://img.shields.io/scrutinizer/g/laravel-backpack/settings.svg?style=flat-square
 [ico-downloads]: https://img.shields.io/packagist/dt/backpack/settings.svg?style=flat-square
 
 [link-packagist]: https://packagist.org/packages/backpack/settings
-[link-travis]: https://travis-ci.org/laravel-backpack/settings
+[link-tests]: https://github.com/Laravel-Backpack/Settings/actions/workflows/tests.yml
 [link-scrutinizer]: https://scrutinizer-ci.com/g/laravel-backpack/settings/code-structure
 [link-code-quality]: https://scrutinizer-ci.com/g/laravel-backpack/settings
 [link-downloads]: https://packagist.org/packages/backpack/settings
