@@ -115,8 +115,8 @@ class SettingsServiceProvider extends ServiceProvider
         }
 
         $store = config('backpack.settings.cache.store');
-        $key   = config('backpack.settings.cache.key', 'backpack.settings.all');
-        $ttl   = (int) config('backpack.settings.cache.ttl', 60 * 60 * 24 * 30);
+        $key = config('backpack.settings.cache.key', 'backpack.settings.all');
+        $ttl = (int) config('backpack.settings.cache.ttl', 60 * 60 * 24 * 30);
 
         return Cache::store($store)->remember($key, $ttl, $loader);
     }
