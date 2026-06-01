@@ -49,6 +49,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Cache
+    |--------------------------------------------------------------------------
+    |
+    | Settings are loaded from the database on every request and bound to
+    | the Laravel config. To avoid hitting the DB on each request, the
+    | result is cached. The cache is automatically invalidated whenever a
+    | setting row is saved or deleted, so the TTL is just a safety net.
+    |
+    | Set `enabled` to false to disable caching entirely (useful in dev).
+    | Set `store` to null to use the default cache store, or to a specific
+    | store name (e.g. 'redis', 'file', 'array') from config/cache.php.
+    | `ttl` is in seconds; default is 30 days.
+    |
+    */
+    'cache' => [
+        'enabled' => true,
+        'store'   => null,
+        'key'     => 'backpack.settings.all',
+        'ttl'     => 60 * 60 * 24 * 30,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Migration file name
     |--------------------------------------------------------------------------
     |

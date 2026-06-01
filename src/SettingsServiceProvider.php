@@ -3,6 +3,7 @@
 namespace Backpack\Settings;
 
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,16 +46,15 @@ class SettingsServiceProvider extends ServiceProvider
             /** @var \Illuminate\Database\Eloquent\Model $modelClass */
             $modelClass = config('backpack.settings.model', \Backpack\Settings\app\Models\Setting::class);
 
-            // get all settings from the database
-            $settings = $modelClass::all();
+            $settings = $this->getCachedSettings($modelClass);
 
             $config_prefix = config('backpack.settings.config_prefix');
 
             // bind all settings to the Laravel config, so you can call them like
             // Config::get('settings.contact_email')
             foreach ($settings as $key => $setting) {
-                $prefixed_key = !empty($config_prefix) ? $config_prefix.'.'.$setting->key : $setting->key;
-                config([$prefixed_key => $setting->value]);
+                $prefixed_key = !empty($config_prefix) ? $config_prefix.'.'.$setting['key'] : $setting['key'];
+                config([$prefixed_key => $setting['value']]);
             }
         }
         // publish the migrations and seeds
@@ -98,5 +98,40 @@ class SettingsServiceProvider extends ServiceProvider
         // register their aliases
         $loader = \Illuminate\Foundation\AliasLoader::getInstance();
         $loader->alias('Setting', config('backpack.settings.model', \Backpack\Settings\app\Models\Setting::class));
+    }
+
+    /**
+     * Load all settings, using a cached array when caching is enabled.
+     * Returns an array of ['key' => ..., 'value' => ...] entries.
+     */
+    protected function getCachedSettings(string $modelClass): array
+    {
+        $loader = fn () => $modelClass::all(['key', 'value'])
+            ->map(fn ($s) => ['key' => $s->key, 'value' => $s->value])
+            ->all();
+
+        if (!config('backpack.settings.cache.enabled', true)) {
+            return $loader();
+        }
+
+        $store = config('backpack.settings.cache.store');
+        $key   = config('backpack.settings.cache.key', 'backpack.settings.all');
+        $ttl   = (int) config('backpack.settings.cache.ttl', 60 * 60 * 24 * 30);
+
+        return Cache::store($store)->remember($key, $ttl, $loader);
+    }
+
+    /**
+     * Forget the cached settings payload. Called from the Setting model on
+     * saved/deleted events so changes are picked up on the next request.
+     */
+    public static function forgetCache(): void
+    {
+        if (!config('backpack.settings.cache.enabled', true)) {
+            return;
+        }
+
+        Cache::store(config('backpack.settings.cache.store'))
+            ->forget(config('backpack.settings.cache.key', 'backpack.settings.all'));
     }
 }
