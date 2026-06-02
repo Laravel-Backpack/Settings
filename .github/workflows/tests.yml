@@ -17,8 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Laravel 8 + crud v4 (PHP 7.4/8.0)
-          - { php: '7.4', laravel: '^8.0',  crud: '^4.0', phpunit: '^8.5|^9.0' }
+          # Laravel 8 + crud v4 (PHP 8.0)
           - { php: '8.0', laravel: '^8.0',  crud: '^4.0', phpunit: '^9.0' }
 
           # Laravel 9 + crud v5 (PHP 8.0/8.1)
