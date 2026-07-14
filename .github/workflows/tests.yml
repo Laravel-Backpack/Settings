@@ -1,0 +1,67 @@
+name: Tests
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Laravel 8 + crud v4 (PHP 8.0)
+          - { php: '8.0', laravel: '^8.0',  crud: '^4.0', phpunit: '^9.0' }
+
+          # Laravel 9 + crud v5 (PHP 8.0/8.1)
+          - { php: '8.0', laravel: '^9.0',  crud: '^5.0', phpunit: '^9.0' }
+          - { php: '8.1', laravel: '^9.0',  crud: '^5.0', phpunit: '^9.0' }
+
+          # Laravel 10/11 + crud v6 (PHP 8.1–8.3)
+          - { php: '8.1', laravel: '^10.0', crud: '^6.0', phpunit: '^10.0' }
+          - { php: '8.2', laravel: '^10.0', crud: '^6.0', phpunit: '^10.0' }
+          - { php: '8.2', laravel: '^11.0', crud: '^6.0', phpunit: '^10.0|^11.0' }
+          - { php: '8.3', laravel: '^11.0', crud: '^6.0', phpunit: '^11.0' }
+
+          # Laravel 12/13 + crud v7 (PHP 8.2–8.5)
+          - { php: '8.2', laravel: '^12.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.3', laravel: '^12.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.4', laravel: '^12.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.5', laravel: '^12.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.3', laravel: '^13.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.4', laravel: '^13.0', crud: '^7.0', phpunit: '^11.0' }
+          - { php: '8.5', laravel: '^13.0', crud: '^7.0', phpunit: '^11.0' }
+
+    name: PHP ${{ matrix.php }}, Laravel ${{ matrix.laravel }}, CRUD ${{ matrix.crud }}, PHPUnit ${{ matrix.phpunit }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: curl, mbstring, zip, pcntl, pdo, sqlite, pdo_sqlite, iconv
+          coverage: none
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.composer/cache/files
+          key: dependencies-laravel-${{ matrix.laravel }}-crud-${{ matrix.crud }}-php-${{ matrix.php }}-phpunit-${{ matrix.phpunit }}-composer-${{ hashFiles('composer.json') }}
+
+      - name: Install dependencies
+        run: |
+          composer require "laravel/framework:${{ matrix.laravel }}" "backpack/crud:${{ matrix.crud }}" "phpunit/phpunit:${{ matrix.phpunit }}" --no-interaction --no-update
+          composer update --prefer-stable --prefer-dist --no-interaction
+
+      - name: Execute tests
+        run: composer test

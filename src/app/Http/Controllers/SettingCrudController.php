@@ -29,8 +29,10 @@ class SettingCrudController extends CrudController
                 'label' => trans('backpack::settings.name'),
             ],
             [
-                'name'  => 'value',
-                'label' => trans('backpack::settings.value'),
+                'name'           => 'value',
+                'label'          => trans('backpack::settings.value'),
+                'type'           => 'setting_value',
+                'view_namespace' => 'backpack-settings::columns',
             ],
             [
                 'name'  => 'description',

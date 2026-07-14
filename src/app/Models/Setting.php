@@ -3,6 +3,7 @@
 namespace Backpack\Settings\app\Models;
 
 use Backpack\CRUD\app\Models\Traits\CrudTrait;
+use Backpack\Settings\SettingsServiceProvider;
 use Config;
 use Illuminate\Database\Eloquent\Model;
 
@@ -17,6 +18,12 @@ class Setting extends Model
         parent::__construct($attributes);
 
         $this->table = config('backpack.settings.table_name');
+    }
+
+    protected static function booted(): void
+    {
+        static::saved(fn () => SettingsServiceProvider::forgetCache());
+        static::deleted(fn () => SettingsServiceProvider::forgetCache());
     }
 
     /**
