@@ -57,4 +57,19 @@ return [
     |
     */
     'migration_name' => '2015_08_04_131614_create_settings_table',
+
+    /*
+    |--------------------------------------------------------------------------
+    | List Table Column character limits
+    |--------------------------------------------------------------------------
+    |
+    | The following character limits are used for the settings list table column values.
+    | If you need to change the character limits, you can do so here.
+    |
+    */
+    'limits' => [
+        'name_field_limit'          => 32,
+        'value_field_limit'         => 32,
+        'description_field_limit'   => 100,
+    ],
 ];
